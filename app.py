@@ -1,15 +1,12 @@
-from dataclasses import dataclass
-from typing import Dict, Tuple
-
+import altair as alt
 import numpy as np
 import pandas as pd
 import streamlit as st
 from sklearn.linear_model import LinearRegression
-from sklearn.metrics import mean_absolute_error
+from sklearn.metrics import mean_absolute_error, mean_squared_error, r2_score
 from sklearn.model_selection import train_test_split
-from sklearn.preprocessing import StandardScaler
 
-FEATURE_COLUMNS = [
+FEATURES = [
     "SquareFootage",
     "Bedrooms",
     "Bathrooms",
@@ -19,74 +16,41 @@ FEATURE_COLUMNS = [
 ]
 
 SCENARIOS = {
-    "Starter Home": {
-        "SquareFootage": 950,
-        "Bedrooms": 2,
-        "Bathrooms": 1,
-        "Age": 18,
-        "GarageSpaces": 1,
-        "DistanceToCity": 22.0,
-    },
-    "Family Home": {
-        "SquareFootage": 1800,
-        "Bedrooms": 3,
-        "Bathrooms": 2,
-        "Age": 10,
-        "GarageSpaces": 1,
-        "DistanceToCity": 12.5,
-    },
-    "Luxury Home": {
-        "SquareFootage": 3600,
-        "Bedrooms": 5,
-        "Bathrooms": 4,
-        "Age": 4,
-        "GarageSpaces": 3,
-        "DistanceToCity": 6.0,
-    },
+    "Starter Home": [950, 2, 1, 18, 1, 22.0],
+    "Family Home": [1800, 3, 2, 10, 1, 12.5],
+    "Luxury Home": [3600, 5, 4, 4, 3, 6.0],
 }
-
-
-@dataclass
-class TrainedBundle:
-    model: LinearRegression
-    scaler: StandardScaler
-    r2: float
-    mae: float
-    baseline_price: float
-    coef_df: pd.DataFrame
-    feature_stats: pd.DataFrame
 
 
 def inject_styles() -> None:
     st.markdown(
         """
         <style>
-            .stApp { background: linear-gradient(180deg, #f7f9fc 0%, #eef3fb 100%); }
-            .hero {
-                border-radius: 18px;
-                padding: 1rem 1.2rem;
-                background: linear-gradient(120deg, #132a53, #2563eb);
-                color: white;
-                box-shadow: 0 10px 24px rgba(19, 42, 83, 0.25);
-                margin-bottom: 1rem;
+            .stApp { background: linear-gradient(180deg, #f7fafc 0%, #eef4ff 100%); }
+            .main-header {
+                background: linear-gradient(135deg, #0ea5e9, #2563eb);
+                -webkit-background-clip: text;
+                -webkit-text-fill-color: transparent;
+                font-size: 2.6rem; font-weight: 800; letter-spacing: -0.02em;
+                margin-bottom: 0.2rem;
             }
-            .hero h1 { margin: 0; font-size: 1.7rem; }
-            .hero p { margin: 0.3rem 0 0; opacity: 0.96; }
-            .glass {
-                background: rgba(255, 255, 255, 0.85);
-                border: 1px solid rgba(37, 99, 235, 0.1);
+            .sub-header { color: #475569; margin-bottom: 1.2rem; }
+            .card {
+                background: rgba(255,255,255,0.8);
+                border: 1px solid rgba(37,99,235,0.15);
                 border-radius: 14px;
-                padding: 0.9rem;
-                transition: transform 180ms ease, box-shadow 180ms ease;
+                padding: 1rem;
+                box-shadow: 0 8px 20px rgba(30, 64, 175, 0.08);
             }
-            .glass:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(15, 23, 42, 0.12); }
+            .hint { color: #475569; font-size: 0.92rem; }
         </style>
         """,
         unsafe_allow_html=True,
     )
 
 
-def build_dataset(seed: int = 42, n_samples: int = 500) -> pd.DataFrame:
+@st.cache_data(show_spinner=False)
+def build_dataset(seed: int = 42, n_samples: int = 1000) -> pd.DataFrame:
     rng = np.random.default_rng(seed)
     data = pd.DataFrame(
         {
@@ -98,188 +62,270 @@ def build_dataset(seed: int = 42, n_samples: int = 500) -> pd.DataFrame:
             "DistanceToCity": rng.uniform(1, 50, n_samples),
         }
     )
-    noise = rng.normal(0, 20000, n_samples)
     data["Price"] = (
-        150 * data["SquareFootage"]
-        + 8000 * data["Bedrooms"]
-        + 12000 * data["Bathrooms"]
-        - 500 * data["Age"]
+        145 * data["SquareFootage"]
+        + 9000 * data["Bedrooms"]
+        + 12500 * data["Bathrooms"]
+        - 550 * data["Age"]
         + 7000 * data["GarageSpaces"]
-        - 1500 * data["DistanceToCity"]
-        + noise
+        - 1400 * data["DistanceToCity"]
+        + rng.normal(0, 18000, n_samples)
     ).clip(50000)
     return data
 
 
 @st.cache_resource(show_spinner=False)
-def train_pipeline() -> TrainedBundle:
-    data = build_dataset()
-    x = data[FEATURE_COLUMNS].copy()
-    y = data["Price"]
+def train_model(train_ratio: int = 80):
+    df = build_dataset()
+    x = df[FEATURES]
+    y = df["Price"]
+    test_size = 1.0 - (train_ratio / 100)
     x_train, x_test, y_train, y_test = train_test_split(
-        x, y, test_size=0.2, random_state=42
+        x, y, test_size=test_size, random_state=42
     )
-
-    scaler = StandardScaler()
-    x_train_scaled = scaler.fit_transform(x_train)
-    x_test_scaled = scaler.transform(x_test)
-
     model = LinearRegression()
-    model.fit(x_train_scaled, y_train)
-    y_pred = model.predict(x_test_scaled)
-
-    coef_df = (
-        pd.DataFrame({"Feature": FEATURE_COLUMNS, "Coefficient": model.coef_})
-        .sort_values("Coefficient", key=abs, ascending=False)
-        .reset_index(drop=True)
-    )
-    feature_stats = x.describe().loc[["mean", "std"]].T.rename(
-        columns={"mean": "Mean", "std": "StdDev"}
-    )
-
-    return TrainedBundle(
-        model=model,
-        scaler=scaler,
-        r2=model.score(x_test_scaled, y_test),
-        mae=mean_absolute_error(y_test, y_pred),
-        baseline_price=float(y.mean()),
-        coef_df=coef_df,
-        feature_stats=feature_stats,
-    )
+    model.fit(x_train, y_train)
+    y_pred = model.predict(x_test)
+    metrics = {
+        "r2": r2_score(y_test, y_pred),
+        "mae": mean_absolute_error(y_test, y_pred),
+        "rmse": float(np.sqrt(mean_squared_error(y_test, y_pred))),
+        "residual_std": float(np.std(y_test - y_pred)),
+    }
+    coef_df = pd.DataFrame({"Feature": FEATURES, "Coefficient": model.coef_})
+    return model, df, x_test, y_test, y_pred, metrics, coef_df, float(model.intercept_)
 
 
 def init_state() -> None:
-    default = SCENARIOS["Family Home"]
-    for key, value in default.items():
-        if key not in st.session_state:
-            st.session_state[key] = value
+    if "scenario" not in st.session_state:
+        st.session_state.scenario = "Family Home"
+    defaults = SCENARIOS[st.session_state.scenario]
+    for key, value in zip(FEATURES, defaults):
+        st.session_state.setdefault(key, value)
 
 
-def load_scenario(scenario_name: str) -> None:
-    scenario = SCENARIOS[scenario_name]
-    for key, value in scenario.items():
+def load_scenario(name: str) -> None:
+    st.session_state.scenario = name
+    values = SCENARIOS[name]
+    for key, value in zip(FEATURES, values):
         st.session_state[key] = value
 
 
-def collect_inputs() -> Dict[str, float]:
-    return {
-        "SquareFootage": float(st.session_state["SquareFootage"]),
-        "Bedrooms": float(st.session_state["Bedrooms"]),
-        "Bathrooms": float(st.session_state["Bathrooms"]),
-        "Age": float(st.session_state["Age"]),
-        "GarageSpaces": float(st.session_state["GarageSpaces"]),
-        "DistanceToCity": float(st.session_state["DistanceToCity"]),
-    }
-
-
-def predict_price(bundle: TrainedBundle, input_row: Dict[str, float]) -> Tuple[float, float]:
-    frame = pd.DataFrame([input_row])[FEATURE_COLUMNS]
-    scaled = bundle.scaler.transform(frame)
-    predicted = float(bundle.model.predict(scaled)[0])
-    # Lightweight uncertainty proxy using MAE for confidence band.
-    confidence_band = 1.15 * bundle.mae
-    return predicted, confidence_band
-
-
-def render_app() -> None:
-    st.set_page_config(page_title="ValuEdge AI Prediction", page_icon="🏠", layout="wide")
-    inject_styles()
-    init_state()
-    bundle = train_pipeline()
-
-    st.markdown(
-        """
-        <div class="hero">
-          <h1>ValuEdge | AI House Price Prediction Engine</h1>
-          <p>Production-style interactive model with explainable predictions and premium UX.</p>
-        </div>
-        """,
-        unsafe_allow_html=True,
+def predict(model: LinearRegression) -> float:
+    sample = pd.DataFrame(
+        [[st.session_state[f] for f in FEATURES]],
+        columns=FEATURES,
     )
+    return float(model.predict(sample)[0])
 
-    with st.container():
-        st.markdown('<div class="glass">', unsafe_allow_html=True)
-        st.subheader("Property Scenario Presets")
-        preset_cols = st.columns(3)
-        for i, name in enumerate(SCENARIOS):
-            with preset_cols[i]:
-                if st.button(name, use_container_width=True):
-                    load_scenario(name)
-                    st.rerun()
-        st.markdown("</div>", unsafe_allow_html=True)
 
-    left, right = st.columns([1.05, 1])
+def build_contributions(
+    current_values: pd.Series,
+    means: pd.Series,
+    coef_df: pd.DataFrame,
+    intercept: float,
+    avg_price: float,
+) -> pd.DataFrame:
+    joined = coef_df.set_index("Feature").join(current_values.rename("Input")).join(means.rename("Mean"))
+    joined["DeltaFromMean"] = joined["Input"] - joined["Mean"]
+    joined["PriceImpact"] = joined["DeltaFromMean"] * joined["Coefficient"]
+    result = joined.reset_index()[["Feature", "Input", "Mean", "Coefficient", "PriceImpact"]]
+    # Calibration row to map linear decomposition close to predicted value.
+    calibration = avg_price - (intercept + (means * joined["Coefficient"]).sum())
+    result.loc[len(result)] = ["Calibration", np.nan, np.nan, np.nan, calibration]
+    return result
+
+
+def render_predictor_tab(
+    model: LinearRegression,
+    df: pd.DataFrame,
+    avg_price: float,
+    metrics: dict,
+    coef_df: pd.DataFrame,
+    intercept: float,
+) -> None:
+    st.subheader("Real-Time House Price Predictor")
+    left, right = st.columns([1.1, 1.0])
     with left:
-        st.markdown('<div class="glass">', unsafe_allow_html=True)
-        st.subheader("Property Inputs")
-        st.slider(
-            "Square Footage",
-            min_value=600,
-            max_value=4000,
-            step=50,
-            key="SquareFootage",
-            help="Total living area in square feet.",
-        )
-        st.slider("Bedrooms", min_value=1, max_value=5, key="Bedrooms")
-        st.slider("Bathrooms", min_value=1, max_value=4, key="Bathrooms")
-        st.slider("Property Age (years)", min_value=1, max_value=60, key="Age")
-        st.slider("Garage Spaces", min_value=0, max_value=3, key="GarageSpaces")
-        st.slider(
-            "Distance to City (km)",
-            min_value=1.0,
-            max_value=50.0,
-            key="DistanceToCity",
-            help="Distance from city center in kilometers.",
-        )
-        predict_clicked = st.button("Predict Price", type="primary", use_container_width=True)
+        st.markdown('<div class="card">', unsafe_allow_html=True)
+        st.write("Adjust the property details:")
+        st.slider("Square Footage", 600, 4000, key="SquareFootage", step=50)
+        st.slider("Bedrooms", 1, 5, key="Bedrooms")
+        st.slider("Bathrooms", 1, 4, key="Bathrooms")
+        st.slider("Age (Years)", 1, 60, key="Age")
+        st.slider("Garage Spaces", 0, 3, key="GarageSpaces")
+        st.slider("Distance to City (km)", 1.0, 50.0, key="DistanceToCity")
+        do_predict = st.button("Predict Price", use_container_width=True, type="primary")
         st.markdown("</div>", unsafe_allow_html=True)
 
     with right:
-        st.markdown('<div class="glass">', unsafe_allow_html=True)
-        st.subheader("Model Quality")
-        m1, m2, m3 = st.columns(3)
-        m1.metric("R² Score", f"{bundle.r2:.4f}")
-        m2.metric("Mean Abs Error", f"${bundle.mae:,.0f}")
-        m3.metric("Baseline Avg Price", f"${bundle.baseline_price:,.0f}")
-        st.write("Top feature influence (coefficient magnitude):")
-        ranked = bundle.coef_df.copy()
-        ranked["AbsCoefficient"] = ranked["Coefficient"].abs()
-        st.bar_chart(ranked.set_index("Feature")["AbsCoefficient"])
+        st.markdown('<div class="card">', unsafe_allow_html=True)
+        if do_predict:
+            pred_price = max(0.0, predict(model))
+            delta_pct = ((pred_price - avg_price) / avg_price) * 100
+            interval = 1.96 * metrics["residual_std"]
+            lower = max(0.0, pred_price - interval)
+            upper = pred_price + interval
+            st.metric("AI Estimated Price", f"${pred_price:,.2f}", f"{delta_pct:+.1f}% vs Avg")
+            st.caption(f"95% expected range: ${lower:,.0f} to ${upper:,.0f}")
+        else:
+            st.info("Click **Predict Price** to generate valuation.")
+
+        st.write("Input vs Dataset Means")
+        means = df[FEATURES].mean().rename("Mean")
+        current = pd.Series({f: st.session_state[f] for f in FEATURES}, name="Your Input")
+        comp = pd.concat([current, means], axis=1).reset_index().rename(columns={"index": "Feature"})
+        st.dataframe(comp, use_container_width=True, hide_index=True)
+
+        if do_predict:
+            st.write("Why this price? (Feature contribution)")
+            contrib = build_contributions(current, means, coef_df, intercept, avg_price)
+            contrib_chart = (
+                alt.Chart(contrib[contrib["Feature"] != "Calibration"])
+                .mark_bar()
+                .encode(
+                    x=alt.X("PriceImpact:Q", title="Impact on Price vs Average"),
+                    y=alt.Y("Feature:N", sort="-x"),
+                    color=alt.condition(
+                        alt.datum.PriceImpact > 0,
+                        alt.value("#16a34a"),
+                        alt.value("#dc2626"),
+                    ),
+                    tooltip=[
+                        "Feature",
+                        alt.Tooltip("PriceImpact:Q", format="$,.0f"),
+                        alt.Tooltip("Input:Q", format=",.2f"),
+                        alt.Tooltip("Mean:Q", format=",.2f"),
+                    ],
+                )
+                .properties(height=210)
+            )
+            st.altair_chart(contrib_chart, use_container_width=True)
         st.markdown("</div>", unsafe_allow_html=True)
 
-    if predict_clicked:
-        try:
-            inputs = collect_inputs()
-            prediction, band = predict_price(bundle, inputs)
-            low, high = max(50000.0, prediction - band), prediction + band
-            delta_pct = (prediction - bundle.baseline_price) / bundle.baseline_price * 100
 
-            st.markdown("### Prediction Result")
-            r1, r2, r3 = st.columns(3)
-            r1.metric("Estimated Price", f"${prediction:,.2f}")
-            r2.metric("Expected Range", f"${low:,.0f} - ${high:,.0f}")
-            r3.metric("Vs Dataset Average", f"{delta_pct:+.1f}%")
+def render_analytics_tab(
+    coef_df: pd.DataFrame,
+    y_test: pd.Series,
+    y_pred: np.ndarray,
+    metrics: dict,
+) -> None:
+    st.subheader("Model Performance & Diagnostics")
+    m1, m2, m3, m4 = st.columns(4)
+    m1.metric("R² Score", f"{metrics['r2']:.4f}")
+    m2.metric("MAE", f"${metrics['mae']:,.0f}")
+    m3.metric("RMSE", f"${metrics['rmse']:,.0f}")
+    m4.metric("Residual Std", f"${metrics['residual_std']:,.0f}")
+    st.markdown("---")
 
-            breakdown = pd.DataFrame(
-                {
-                    "Feature": FEATURE_COLUMNS,
-                    "Input Value": [inputs[c] for c in FEATURE_COLUMNS],
-                    "Model Coefficient": bundle.model.coef_,
-                }
+    c1, c2 = st.columns(2)
+    with c1:
+        st.write("Feature Coefficients")
+        coef_chart = (
+            alt.Chart(coef_df)
+            .mark_bar()
+            .encode(
+                x=alt.X("Coefficient:Q", title="Coefficient Impact"),
+                y=alt.Y("Feature:N", sort="-x"),
+                color=alt.condition(
+                    alt.datum.Coefficient > 0,
+                    alt.value("#10b981"),
+                    alt.value("#ef4444"),
+                ),
+                tooltip=["Feature", alt.Tooltip("Coefficient:Q", format=",.2f")],
             )
-            breakdown["Weighted Impact"] = (
-                breakdown["Input Value"] * breakdown["Model Coefficient"]
+            .properties(height=260)
+        )
+        st.altair_chart(coef_chart, use_container_width=True)
+
+    with c2:
+        st.write("Actual vs Predicted")
+        plot_df = pd.DataFrame({"Actual": y_test, "Predicted": y_pred})
+        scatter = (
+            alt.Chart(plot_df)
+            .mark_circle(size=42, opacity=0.55, color="#2563eb")
+            .encode(
+                x=alt.X("Actual:Q", title="Actual Price"),
+                y=alt.Y("Predicted:Q", title="Predicted Price"),
+                tooltip=[alt.Tooltip("Actual:Q", format="$,.0f"), alt.Tooltip("Predicted:Q", format="$,.0f")],
             )
-            st.write("Explainability view (input impact before model intercept scaling):")
-            st.dataframe(
-                breakdown.sort_values("Weighted Impact", key=np.abs, ascending=False),
-                use_container_width=True,
-                hide_index=True,
+            .properties(height=260)
+        )
+        st.altair_chart(scatter, use_container_width=True)
+
+
+def render_explorer_tab(df: pd.DataFrame) -> None:
+    st.subheader("Interactive Dataset Explorer")
+    l, r = st.columns([1, 1.1])
+    with l:
+        st.write("Preview")
+        st.dataframe(df.head(80), use_container_width=True, height=300)
+        st.write("Summary Stats")
+        st.dataframe(df.describe().T[["mean", "std", "min", "max"]], use_container_width=True)
+    with r:
+        feature = st.selectbox("X-axis Feature", FEATURES, index=0)
+        sample = df.sample(min(500, len(df)), random_state=42)
+        scatter = (
+            alt.Chart(sample)
+            .mark_circle(size=45, opacity=0.45, color="#0ea5e9")
+            .encode(
+                x=alt.X(f"{feature}:Q", title=feature),
+                y=alt.Y("Price:Q", title="Price"),
+                tooltip=[feature, alt.Tooltip("Price:Q", format="$,.0f")],
             )
-        except Exception as exc:
-            st.error("Prediction failed. Please verify input values and try again.")
-            st.exception(exc)
+        )
+        trend = scatter.transform_regression(feature, "Price").mark_line(color="#1d4ed8", strokeWidth=3)
+        st.altair_chart((scatter + trend).properties(height=360), use_container_width=True)
+
+
+def main() -> None:
+    st.set_page_config(
+        page_title="ValuEdge | AI House Price Predictor",
+        layout="wide",
+        page_icon="🏠",
+        initial_sidebar_state="expanded",
+    )
+    inject_styles()
+    init_state()
+
+    st.markdown('<div class="main-header">ValuEdge | AI House Price Predictor</div>', unsafe_allow_html=True)
+    st.markdown(
+        '<div class="sub-header">Premium-style ML valuation app with live prediction, diagnostics, and data explorer.</div>',
+        unsafe_allow_html=True,
+    )
+
+    with st.sidebar:
+        st.header("Preset Scenarios")
+        train_ratio = st.slider("Training Split (%)", min_value=70, max_value=90, value=80, step=5)
+        c1, c2 = st.columns(2)
+        with c1:
+            if st.button("Starter", use_container_width=True):
+                load_scenario("Starter Home")
+                st.rerun()
+            if st.button("Luxury", use_container_width=True):
+                load_scenario("Luxury Home")
+                st.rerun()
+        with c2:
+            if st.button("Family", use_container_width=True):
+                load_scenario("Family Home")
+                st.rerun()
+            if st.button("Reset", use_container_width=True):
+                load_scenario("Family Home")
+                st.rerun()
+        st.markdown('<p class="hint">Use presets to create quick demo interactions.</p>', unsafe_allow_html=True)
+        st.caption("Accessibility: all controls have labels and keyboard focus support.")
+
+    model, df, x_test, y_test, y_pred, metrics, coef_df, intercept = train_model(train_ratio=train_ratio)
+    avg_price = float(df["Price"].mean())
+    t1, t2, t3 = st.tabs(["Price Predictor", "Model Diagnostics", "Data Explorer"])
+
+    with t1:
+        render_predictor_tab(model, df, avg_price, metrics, coef_df, intercept)
+    with t2:
+        render_analytics_tab(coef_df, y_test, y_pred, metrics)
+    with t3:
+        render_explorer_tab(df)
 
 
 if __name__ == "__main__":
-    render_app()
+    main()
