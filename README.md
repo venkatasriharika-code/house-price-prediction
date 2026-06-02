@@ -121,6 +121,9 @@ Live House Price Prediction
 ### 4. Feature Importance (Linear Regression Coefficients)
 ![Feature Importance](screenshot4_feature_importance.png)
 
+### 5. Streamlit App Demo(Dashboard + Real-time prediction)
+![Streamlit App](app_demo1.png)
+![Streamlit App](app_demo2.png)
 ---
 
 ## Tech Stack
