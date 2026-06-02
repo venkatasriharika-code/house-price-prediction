@@ -27,6 +27,7 @@
 - [Tech Stack](#tech-stack)
 - [How to Run](#how-to-run)
 - [Key Insights](#key-insights)
+- [Project Structure](#project-structure)
 - [Author](#author)
 
 ---
@@ -142,6 +143,7 @@ Live House Price Prediction
 **Option 1 — Google Colab (Recommended)**
 
 Open the notebook directly in Colab and run all cells.
+https://colab.research.google.com/drive/1xJH9bI9B5uII4ObEAwHW5gnkuIfF3UKc?usp=sharing
 
 **Option 2 — Local**
 
