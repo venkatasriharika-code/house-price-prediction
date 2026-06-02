@@ -152,7 +152,7 @@ cd house-price-prediction
 pip install -r requirements.txt
 
 # Run script version
-python house_price_prediction.py
+python house-price-prediction.py
 
 # Optional: run app version
 streamlit run app.py
