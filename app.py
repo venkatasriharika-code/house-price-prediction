@@ -249,7 +249,6 @@ def render_predictor_tab(
     st.subheader("Real-Time House Price Predictor")
     left, right = st.columns(2)
     with left:
-        st.markdown('<div class="card">', unsafe_allow_html=True)
         st.write("Adjust the property details:")
         st.slider("Square Footage", 600, 4000, key="SquareFootage", step=50)
         st.slider("Bedrooms", 1, 5, key="Bedrooms")
@@ -261,7 +260,6 @@ def render_predictor_tab(
         st.markdown("</div>", unsafe_allow_html=True)
 
     with right:
-        st.markdown('<div class="card">', unsafe_allow_html=True)
         if do_predict:
             pred_price = max(0.0, predict(model))
             delta_pct = ((pred_price - avg_price) / avg_price) * 100
