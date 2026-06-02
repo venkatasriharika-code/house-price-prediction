@@ -149,10 +149,13 @@ git clone https://github.com/venkatasriharika-code/house-price-prediction.git
 cd house-price-prediction
 
 # Install dependencies
-pip install numpy pandas scikit-learn matplotlib seaborn
+pip install -r requirements.txt
 
-# Run
+# Run script version
 python house_price_prediction.py
+
+# Optional: run app version
+streamlit run app.py
 ```
 
 ---
