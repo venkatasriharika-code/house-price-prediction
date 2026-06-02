@@ -27,6 +27,16 @@ def inject_styles() -> None:
         """
         <style>
             .stApp { background: linear-gradient(180deg, #f7fafc 0%, #eef4ff 100%); }
+            .stApp, .stApp p, .stApp li, .stApp label, .stMarkdown, .stText {
+                color: #0f172a !important;
+            }
+            .stApp h1, .stApp h2, .stApp h3, .stApp h4 {
+                color: #0f172a !important;
+            }
+            .stTabs [data-baseweb="tab-list"] button [data-testid="stMarkdownContainer"] p {
+                color: #334155 !important;
+                font-weight: 600;
+            }
             .main-header {
                 background: linear-gradient(135deg, #0ea5e9, #2563eb);
                 -webkit-background-clip: text;
@@ -41,6 +51,10 @@ def inject_styles() -> None:
                 border-radius: 14px;
                 padding: 1rem;
                 box-shadow: 0 8px 20px rgba(30, 64, 175, 0.08);
+            }
+            .card * { color: #0f172a !important; }
+            [data-testid="stMetricLabel"], [data-testid="stMetricValue"] {
+                color: #0f172a !important;
             }
             .hint { color: #475569; font-size: 0.92rem; }
         </style>
@@ -280,7 +294,7 @@ def render_explorer_tab(df: pd.DataFrame) -> None:
 
 def main() -> None:
     st.set_page_config(
-        page_title="ValuEdge | AI House Price Predictor",
+        page_title="Valora | AI House Price Predictor",
         layout="wide",
         page_icon="🏠",
         initial_sidebar_state="expanded",
