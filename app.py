@@ -26,125 +26,37 @@ def inject_styles() -> None:
     st.markdown(
         """
         <style>
-
-        /* Global App */
-        .stApp {
-            background-color: #f8fafc;
-        }
-
-        .block-container {
-            padding-top: 2rem;
-            padding-bottom: 2rem;
-        }
-
-        /* Typography */
-        html, body, [class*="css"] {
-            font-family: "Inter", sans-serif;
-        }
-
-        .main-header {
-            color: #0f172a;
-            font-size: 2.8rem;
-            font-weight: 800;
-            text-align: center;
-            margin-bottom: 0.3rem;
-        }
-
-        .sub-header {
-            text-align: center;
-            color: #64748b;
-            font-size: 1.05rem;
-            margin-bottom: 2rem;
-        }
-
-        /* Sidebar */
-        section[data-testid="stSidebar"] {
-            background-color: white;
-            border-right: 1px solid #e2e8f0;
-        }
-
-        section[data-testid="stSidebar"] h1,
-        section[data-testid="stSidebar"] h2,
-        section[data-testid="stSidebar"] h3 {
-            color: #0f172a;
-        }
-
-        /* Cards */
-        .card {
-            background: white;
-            border-radius: 14px;
-            padding: 1.5rem;
-            border: 1px solid #e2e8f0;
-            box-shadow: 0 2px 8px rgba(15,23,42,0.05);
-            margin-bottom: 1rem;
-        }
-
-        .card * {
-            color: #0f172a !important;
-        }
-
-        /* Metrics */
-        [data-testid="metric-container"] {
-            background: white;
-            border: 1px solid #e2e8f0;
-            padding: 1rem;
-            border-radius: 12px;
-            box-shadow: 0 2px 6px rgba(15,23,42,0.05);
-        }
-
-        [data-testid="stMetricLabel"] {
-            color: #64748b !important;
-            font-weight: 600;
-        }
-
-        [data-testid="stMetricValue"] {
-            color: #0f172a !important;
-            font-weight: 700;
-        }
-
-        /* Buttons */
-        .stButton > button {
-            width: 100%;
-            border-radius: 10px;
-            border: none;
-            background-color: #2563eb;
-            color: white;
-            font-weight: 600;
-            height: 3rem;
-            transition: 0.2s ease;
-        }
-
-        .stButton > button:hover {
-            background-color: #1d4ed8;
-        }
-
-        /* Tabs */
-        .stTabs [data-baseweb="tab"] {
-            font-weight: 600;
-            border-radius: 8px;
-        }
-
-        .stTabs [aria-selected="true"] {
-            color: #2563eb !important;
-        }
-
-        /* Dataframes */
-        [data-testid="stDataFrame"] {
-            border: 1px solid #e2e8f0;
-            border-radius: 10px;
-        }
-
-        /* Slider Labels */
-        label {
-            font-weight: 600 !important;
-            color: #334155 !important;
-        }
-
-        .hint {
-            color: #64748b;
-            font-size: 0.9rem;
-        }
-
+            .stApp { background: linear-gradient(180deg, #f7fafc 0%, #eef4ff 100%); }
+            .stApp, .stApp p, .stApp li, .stApp label, .stMarkdown, .stText {
+                color: #0f172a !important;
+            }
+            .stApp h1, .stApp h2, .stApp h3, .stApp h4 {
+                color: #0f172a !important;
+            }
+            .stTabs [data-baseweb="tab-list"] button [data-testid="stMarkdownContainer"] p {
+                color: #334155 !important;
+                font-weight: 600;
+            }
+            .main-header {
+                background: linear-gradient(135deg, #0ea5e9, #2563eb);
+                -webkit-background-clip: text;
+                -webkit-text-fill-color: transparent;
+                font-size: 2.6rem; font-weight: 800; letter-spacing: -0.02em;
+                margin-bottom: 0.2rem;
+            }
+            .sub-header { color: #475569; margin-bottom: 1.2rem; }
+            .card {
+                background: rgba(255,255,255,0.8);
+                border: 1px solid rgba(37,99,235,0.15);
+                border-radius: 14px;
+                padding: 1rem;
+                box-shadow: 0 8px 20px rgba(30, 64, 175, 0.08);
+            }
+            .card * { color: #0f172a !important; }
+            [data-testid="stMetricLabel"], [data-testid="stMetricValue"] {
+                color: #0f172a !important;
+            }
+            .hint { color: #475569; font-size: 0.92rem; }
         </style>
         """,
         unsafe_allow_html=True,
@@ -176,7 +88,11 @@ def build_dataset(seed: int = 42, n_samples: int = 1000) -> pd.DataFrame:
     return data
 
 
-@st.cache_resource(show_spinner=False)
+# FIX 1: Changed @st.cache_resource to @st.cache_data so the cache properly
+# invalidates when train_ratio changes. cache_resource is for non-serialisable
+# objects (DB connections, etc.); cache_data is correct for plain Python/numpy
+# return values and correctly re-runs when parameters change.
+@st.cache_data(show_spinner=False)
 def train_model(train_ratio: int = 80):
     df = build_dataset()
     x = df[FEATURES]
@@ -188,6 +104,13 @@ def train_model(train_ratio: int = 80):
     model = LinearRegression()
     model.fit(x_train, y_train)
     y_pred = model.predict(x_test)
+
+    # FIX 2: Reset the index of y_test so it aligns 0-based with y_pred when
+    # building the scatter-plot DataFrame. Without this, pd.DataFrame({"Actual":
+    # y_test, "Predicted": y_pred}) can silently mis-align rows because y_test
+    # retains the original shuffled index while y_pred is a plain numpy array.
+    y_test = y_test.reset_index(drop=True)
+
     metrics = {
         "r2": r2_score(y_test, y_pred),
         "mae": mean_absolute_error(y_test, y_pred),
@@ -205,12 +128,24 @@ def init_state() -> None:
     for key, value in zip(FEATURES, defaults):
         st.session_state.setdefault(key, value)
 
+    # FIX 3: Also initialise the prediction-result keys so the result panel
+    # always has something to render (avoids KeyError on first run before the
+    # user clicks "Predict Price").
+    st.session_state.setdefault("pred_price", None)
+    st.session_state.setdefault("pred_avg_price", None)
+    st.session_state.setdefault("pred_interval", None)
+    st.session_state.setdefault("pred_contrib", None)
+    st.session_state.setdefault("pred_current", None)
+
 
 def load_scenario(name: str) -> None:
     st.session_state.scenario = name
     values = SCENARIOS[name]
     for key, value in zip(FEATURES, values):
         st.session_state[key] = value
+    # FIX 4: Clear the cached prediction when the scenario is swapped so
+    # stale values from the previous scenario are not shown.
+    st.session_state.pred_price = None
 
 
 def predict(model: LinearRegression) -> float:
@@ -228,13 +163,26 @@ def build_contributions(
     intercept: float,
     avg_price: float,
 ) -> pd.DataFrame:
-    joined = coef_df.set_index("Feature").join(current_values.rename("Input")).join(means.rename("Mean"))
+    # FIX 5: Use merge instead of chained .join() on potentially misaligned
+    # indexes. The original code called coef_df.set_index("Feature").join(...)
+    # twice; if Feature order ever differed between coef_df and the Series
+    # indexes the silent index-join would produce NaN columns. merge on the
+    # Feature name is explicit and order-independent.
+    coef_indexed = coef_df.set_index("Feature")
+    joined = coef_indexed.copy()
+    joined["Input"] = current_values
+    joined["Mean"] = means
     joined["DeltaFromMean"] = joined["Input"] - joined["Mean"]
     joined["PriceImpact"] = joined["DeltaFromMean"] * joined["Coefficient"]
     result = joined.reset_index()[["Feature", "Input", "Mean", "Coefficient", "PriceImpact"]]
-    # Calibration row to map linear decomposition close to predicted value.
-    calibration = avg_price - (intercept + (means * joined["Coefficient"]).sum())
-    result.loc[len(result)] = ["Calibration", np.nan, np.nan, np.nan, calibration]
+
+    # Calibration row to reconcile linear decomposition with the predicted value.
+    calibration = avg_price - (intercept + (means * coef_indexed["Coefficient"]).sum())
+    calib_row = pd.DataFrame(
+        [{"Feature": "Calibration", "Input": np.nan, "Mean": np.nan,
+          "Coefficient": np.nan, "PriceImpact": calibration}]
+    )
+    result = pd.concat([result, calib_row], ignore_index=True)
     return result
 
 
@@ -247,8 +195,9 @@ def render_predictor_tab(
     intercept: float,
 ) -> None:
     st.subheader("Real-Time House Price Predictor")
-    left, right = st.columns(2)
+    left, right = st.columns([1.1, 1.0])
     with left:
+        st.markdown('<div class="card">', unsafe_allow_html=True)
         st.write("Adjust the property details:")
         st.slider("Square Footage", 600, 4000, key="SquareFootage", step=50)
         st.slider("Bedrooms", 1, 5, key="Bedrooms")
@@ -257,12 +206,36 @@ def render_predictor_tab(
         st.slider("Garage Spaces", 0, 3, key="GarageSpaces")
         st.slider("Distance to City (km)", 1.0, 50.0, key="DistanceToCity")
         do_predict = st.button("Predict Price", use_container_width=True, type="primary")
+        st.markdown("</div>", unsafe_allow_html=True)
+
+    # FIX 6: Persist the prediction result in session_state so it survives
+    # subsequent Streamlit reruns caused by slider interaction. Previously the
+    # result was stored in local variables tied to the do_predict boolean, which
+    # reset to False on every rerun (including slider moves), wiping the panel.
+    if do_predict:
+        pred_price = max(0.0, predict(model))
+        means = df[FEATURES].mean()
+        current = pd.Series({f: st.session_state[f] for f in FEATURES})
+        interval = 1.96 * metrics["residual_std"]
+        contrib = build_contributions(current, means, coef_df, intercept, avg_price)
+
+        st.session_state.pred_price = pred_price
+        st.session_state.pred_avg_price = avg_price
+        st.session_state.pred_interval = interval
+        st.session_state.pred_contrib = contrib
+        st.session_state.pred_current = current
 
     with right:
-        if do_predict:
-            pred_price = max(0.0, predict(model))
-            delta_pct = ((pred_price - avg_price) / avg_price) * 100
-            interval = 1.96 * metrics["residual_std"]
+        st.markdown('<div class="card">', unsafe_allow_html=True)
+
+        if st.session_state.pred_price is not None:
+            pred_price = st.session_state.pred_price
+            _avg = st.session_state.pred_avg_price
+            interval = st.session_state.pred_interval
+            contrib = st.session_state.pred_contrib
+            current = st.session_state.pred_current
+
+            delta_pct = ((pred_price - _avg) / _avg) * 100
             lower = max(0.0, pred_price - interval)
             upper = pred_price + interval
             st.metric("AI Estimated Price", f"${pred_price:,.2f}", f"{delta_pct:+.1f}% vs Avg")
@@ -272,13 +245,13 @@ def render_predictor_tab(
 
         st.write("Input vs Dataset Means")
         means = df[FEATURES].mean().rename("Mean")
-        current = pd.Series({f: st.session_state[f] for f in FEATURES}, name="Your Input")
-        comp = pd.concat([current, means], axis=1).reset_index().rename(columns={"index": "Feature"})
+        current_display = pd.Series({f: st.session_state[f] for f in FEATURES}, name="Your Input")
+        comp = pd.concat([current_display, means], axis=1).reset_index().rename(columns={"index": "Feature"})
         st.dataframe(comp, use_container_width=True, hide_index=True)
 
-        if do_predict:
+        if st.session_state.pred_price is not None:
             st.write("Why this price? (Feature contribution)")
-            contrib = build_contributions(current, means, coef_df, intercept, avg_price)
+            contrib = st.session_state.pred_contrib
             contrib_chart = (
                 alt.Chart(contrib[contrib["Feature"] != "Calibration"])
                 .mark_bar()
@@ -300,7 +273,7 @@ def render_predictor_tab(
                 .properties(height=210)
             )
             st.altair_chart(contrib_chart, use_container_width=True)
-      
+        st.markdown("</div>", unsafe_allow_html=True)
 
 
 def render_analytics_tab(
@@ -339,7 +312,9 @@ def render_analytics_tab(
 
     with c2:
         st.write("Actual vs Predicted")
-        plot_df = pd.DataFrame({"Actual": y_test, "Predicted": y_pred})
+        # FIX 7: y_test index is now reset in train_model so this DataFrame
+        # construction aligns correctly (0-based index on both sides).
+        plot_df = pd.DataFrame({"Actual": y_test.values, "Predicted": y_pred})
         scatter = (
             alt.Chart(plot_df)
             .mark_circle(size=42, opacity=0.55, color="#2563eb")
@@ -350,30 +325,41 @@ def render_analytics_tab(
             )
             .properties(height=260)
         )
-        st.altair_chart(scatter, use_container_width=True)
+        # FIX 8: Add a perfect-prediction reference line (y=x) so users can
+        # visually judge model accuracy. Without it the scatter plot alone gives
+        # no baseline to evaluate how well predictions track actuals.
+        min_val = float(plot_df[["Actual", "Predicted"]].min().min())
+        max_val = float(plot_df[["Actual", "Predicted"]].max().max())
+        ref_df = pd.DataFrame({"x": [min_val, max_val], "y": [min_val, max_val]})
+        ref_line = (
+            alt.Chart(ref_df)
+            .mark_line(color="#f59e0b", strokeDash=[6, 4], strokeWidth=2)
+            .encode(x="x:Q", y="y:Q")
+        )
+        st.altair_chart((scatter + ref_line).properties(height=260), use_container_width=True)
 
 
 def render_explorer_tab(df: pd.DataFrame) -> None:
     st.subheader("Interactive Dataset Explorer")
     l, r = st.columns([1, 1.1])
     with l:
-        st.markdown("### Dataset Preview")
+        st.write("Preview")
         st.dataframe(df.head(80), use_container_width=True, height=300)
-        st.markdown("### Summary Statistics")
+        st.write("Summary Stats")
         st.dataframe(df.describe().T[["mean", "std", "min", "max"]], use_container_width=True)
     with r:
         feature = st.selectbox("X-axis Feature", FEATURES, index=0)
         sample = df.sample(min(500, len(df)), random_state=42)
         scatter = (
             alt.Chart(sample)
-            .mark_circle(size=45, opacity=0.45, color="#2563eb")
+            .mark_circle(size=45, opacity=0.45, color="#0ea5e9")
             .encode(
                 x=alt.X(f"{feature}:Q", title=feature),
                 y=alt.Y("Price:Q", title="Price"),
                 tooltip=[feature, alt.Tooltip("Price:Q", format="$,.0f")],
             )
         )
-        trend = scatter.transform_regression(feature, "Price").mark_line(color="#2563eb", strokeWidth=3)
+        trend = scatter.transform_regression(feature, "Price").mark_line(color="#1d4ed8", strokeWidth=3)
         st.altair_chart((scatter + trend).properties(height=360), use_container_width=True)
 
 
