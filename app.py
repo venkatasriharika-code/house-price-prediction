@@ -26,37 +26,125 @@ def inject_styles() -> None:
     st.markdown(
         """
         <style>
-            .stApp { background: linear-gradient(180deg, #f7fafc 0%, #eef4ff 100%); }
-            .stApp, .stApp p, .stApp li, .stApp label, .stMarkdown, .stText {
-                color: #0f172a !important;
-            }
-            .stApp h1, .stApp h2, .stApp h3, .stApp h4 {
-                color: #0f172a !important;
-            }
-            .stTabs [data-baseweb="tab-list"] button [data-testid="stMarkdownContainer"] p {
-                color: #334155 !important;
-                font-weight: 600;
-            }
-            .main-header {
-                background: linear-gradient(135deg, #0ea5e9, #2563eb);
-                -webkit-background-clip: text;
-                -webkit-text-fill-color: transparent;
-                font-size: 2.6rem; font-weight: 800; letter-spacing: -0.02em;
-                margin-bottom: 0.2rem;
-            }
-            .sub-header { color: #475569; margin-bottom: 1.2rem; }
-            .card {
-                background: rgba(255,255,255,0.8);
-                border: 1px solid rgba(37,99,235,0.15);
-                border-radius: 14px;
-                padding: 1rem;
-                box-shadow: 0 8px 20px rgba(30, 64, 175, 0.08);
-            }
-            .card * { color: #0f172a !important; }
-            [data-testid="stMetricLabel"], [data-testid="stMetricValue"] {
-                color: #0f172a !important;
-            }
-            .hint { color: #475569; font-size: 0.92rem; }
+
+        /* Global App */
+        .stApp {
+            background-color: #f8fafc;
+        }
+
+        .block-container {
+            padding-top: 2rem;
+            padding-bottom: 2rem;
+        }
+
+        /* Typography */
+        html, body, [class*="css"] {
+            font-family: "Inter", sans-serif;
+        }
+
+        .main-header {
+            color: #0f172a;
+            font-size: 2.8rem;
+            font-weight: 800;
+            text-align: center;
+            margin-bottom: 0.3rem;
+        }
+
+        .sub-header {
+            text-align: center;
+            color: #64748b;
+            font-size: 1.05rem;
+            margin-bottom: 2rem;
+        }
+
+        /* Sidebar */
+        section[data-testid="stSidebar"] {
+            background-color: white;
+            border-right: 1px solid #e2e8f0;
+        }
+
+        section[data-testid="stSidebar"] h1,
+        section[data-testid="stSidebar"] h2,
+        section[data-testid="stSidebar"] h3 {
+            color: #0f172a;
+        }
+
+        /* Cards */
+        .card {
+            background: white;
+            border-radius: 14px;
+            padding: 1.5rem;
+            border: 1px solid #e2e8f0;
+            box-shadow: 0 2px 8px rgba(15,23,42,0.05);
+            margin-bottom: 1rem;
+        }
+
+        .card * {
+            color: #0f172a !important;
+        }
+
+        /* Metrics */
+        [data-testid="metric-container"] {
+            background: white;
+            border: 1px solid #e2e8f0;
+            padding: 1rem;
+            border-radius: 12px;
+            box-shadow: 0 2px 6px rgba(15,23,42,0.05);
+        }
+
+        [data-testid="stMetricLabel"] {
+            color: #64748b !important;
+            font-weight: 600;
+        }
+
+        [data-testid="stMetricValue"] {
+            color: #0f172a !important;
+            font-weight: 700;
+        }
+
+        /* Buttons */
+        .stButton > button {
+            width: 100%;
+            border-radius: 10px;
+            border: none;
+            background-color: #2563eb;
+            color: white;
+            font-weight: 600;
+            height: 3rem;
+            transition: 0.2s ease;
+        }
+
+        .stButton > button:hover {
+            background-color: #1d4ed8;
+        }
+
+        /* Tabs */
+        .stTabs [data-baseweb="tab"] {
+            font-weight: 600;
+            border-radius: 8px;
+        }
+
+        .stTabs [aria-selected="true"] {
+            color: #2563eb !important;
+        }
+
+        /* Dataframes */
+        [data-testid="stDataFrame"] {
+            border: 1px solid #e2e8f0;
+            border-radius: 10px;
+        }
+
+        /* Slider Labels */
+        label {
+            font-weight: 600 !important;
+            color: #334155 !important;
+        }
+
+        .hint {
+            color: #64748b;
+            font-size: 0.9rem;
+        }
+
         </style>
         """,
         unsafe_allow_html=True,
@@ -159,7 +247,7 @@ def render_predictor_tab(
     intercept: float,
 ) -> None:
     st.subheader("Real-Time House Price Predictor")
-    left, right = st.columns([1.1, 1.0])
+    left, right = st.columns(2)
     with left:
         st.markdown('<div class="card">', unsafe_allow_html=True)
         st.write("Adjust the property details:")
@@ -272,23 +360,23 @@ def render_explorer_tab(df: pd.DataFrame) -> None:
     st.subheader("Interactive Dataset Explorer")
     l, r = st.columns([1, 1.1])
     with l:
-        st.write("Preview")
+        st.markdown("### Dataset Preview")
         st.dataframe(df.head(80), use_container_width=True, height=300)
-        st.write("Summary Stats")
+        st.markdown("### Summary Statistics")
         st.dataframe(df.describe().T[["mean", "std", "min", "max"]], use_container_width=True)
     with r:
         feature = st.selectbox("X-axis Feature", FEATURES, index=0)
         sample = df.sample(min(500, len(df)), random_state=42)
         scatter = (
             alt.Chart(sample)
-            .mark_circle(size=45, opacity=0.45, color="#0ea5e9")
+            .mark_circle(size=45, opacity=0.45, color="#2563eb")
             .encode(
                 x=alt.X(f"{feature}:Q", title=feature),
                 y=alt.Y("Price:Q", title="Price"),
                 tooltip=[feature, alt.Tooltip("Price:Q", format="$,.0f")],
             )
         )
-        trend = scatter.transform_regression(feature, "Price").mark_line(color="#1d4ed8", strokeWidth=3)
+        trend = scatter.transform_regression(feature, "Price").mark_line(color="#2563eb", strokeWidth=3)
         st.altair_chart((scatter + trend).properties(height=360), use_container_width=True)
 
 
