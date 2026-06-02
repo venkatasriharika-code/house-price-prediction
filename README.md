@@ -132,6 +132,8 @@ Live House Price Prediction
 | Scikit-learn | 1.6.1 | ML model & preprocessing |
 | Matplotlib | 3.10 | Plotting |
 | Seaborn | 0.13.2 | Statistical visualization |
+| Streamlit | 1.45+ | Interactive web app UI |
+| Altair | 5.0+ | Interactive charts and visual analytics |
 
 ---
 
@@ -175,13 +177,16 @@ streamlit run app.py
 ```
 house-price-prediction/
 │
-├── house_price_prediction.py           # Main ML pipeline script
-├── house_price_prediction.ipynb        # Google Colab notebook
-├── screenshot1_eda_scatter.png         # EDA visualizations
+├── app.py                            # Streamlit app (interactive predictor + analytics + explorer)
+├── house-price-prediction.py         # Main ML pipeline script
+├── house_price_prediction.ipynb      # Google Colab notebook
+├── requirements.txt                  # Python dependencies
+├── screenshot1_eda_scatter.png       # EDA visualizations
 ├── screenshot2_correlation_heatmap.png # Correlation heatmap
-├── screenshot3_model_results.png       # Model evaluation plots
-├── house_price_banner.svg              # Project banner
-└── README.md                           # Project documentation
+├── screenshot3_model_results.png     # Model evaluation plots
+├── screenshot4_feature_importance.png # Feature importance plot
+├── house_price_banner.svg            # Project banner
+└── README.md                         # Project documentation
 ```
 
 ---
