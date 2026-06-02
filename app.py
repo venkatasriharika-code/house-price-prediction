@@ -257,7 +257,6 @@ def render_predictor_tab(
         st.slider("Garage Spaces", 0, 3, key="GarageSpaces")
         st.slider("Distance to City (km)", 1.0, 50.0, key="DistanceToCity")
         do_predict = st.button("Predict Price", use_container_width=True, type="primary")
-        st.markdown("</div>", unsafe_allow_html=True)
 
     with right:
         if do_predict:
@@ -301,7 +300,7 @@ def render_predictor_tab(
                 .properties(height=210)
             )
             st.altair_chart(contrib_chart, use_container_width=True)
-        st.markdown("</div>", unsafe_allow_html=True)
+      
 
 
 def render_analytics_tab(
