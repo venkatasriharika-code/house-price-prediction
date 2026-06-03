@@ -201,8 +201,6 @@ house-price-prediction/
 
 **Venkata Sriharika Prathipati**
 
-Machine Learning Intern — Horizon Intern | Batch 115
-
 [![GitHub](https://img.shields.io/badge/GitHub-venkatasriharika--code-181717?style=for-the-badge&logo=github&logoColor=white)](https://github.com/venkatasriharika-code)
 [![LinkedIn](https://img.shields.io/badge/LinkedIn-Venkata%20Sriharika-0077B5?style=for-the-badge&logo=linkedin&logoColor=white)](https://linkedin.com/in/venkata-sriharika-prathipati-b9491b300)
 
