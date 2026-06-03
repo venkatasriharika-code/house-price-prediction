@@ -122,7 +122,7 @@ Live House Price Prediction
 
 ### 5. Streamlit App Demo(Dashboard + Real-time prediction)
 ![Streamlit App](app_demo1.png)
-![Streamlit App](app_demo2.png)
+![Streamlit App](app_demo.png)
 ---
 
 ## Tech Stack
