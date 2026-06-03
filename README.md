@@ -211,4 +211,3 @@ Machine Learning Intern — Horizon Intern | Batch 115
 
 ---
 
-*Built as part of the Horizon Intern Virtual Internship Program — Machine Learning Domain, Batch 115*
