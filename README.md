@@ -10,7 +10,6 @@
 ![Pandas](https://img.shields.io/badge/Pandas-2.2-150458?style=for-the-badge&logo=pandas&logoColor=white)
 ![Matplotlib](https://img.shields.io/badge/Matplotlib-3.10-11557C?style=for-the-badge)
 ![Status](https://img.shields.io/badge/Status-Completed-brightgreen?style=for-the-badge)
-![Internship](https://img.shields.io/badge/Horizon%20Intern-Batch%20115-8A2BE2?style=for-the-badge)
 
 **A supervised machine learning project that predicts residential property prices using Linear Regression — trained on 500 records across 6 real estate features, achieving an R² score of 97.9%.**
 
