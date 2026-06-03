@@ -557,7 +557,6 @@ def main() -> None:
         <b style="color:#c9d1d9;">Preprocessing</b><br>StandardScaler<br><br>
         <b style="color:#c9d1d9;">Dataset</b><br>500 synthetic records<br><br>
         <b style="color:#c9d1d9;">Author</b><br>Venkata Sriharika Prathipati<br>
-        Horizon Intern · Batch 115
         </div>
         """, unsafe_allow_html=True)
 
